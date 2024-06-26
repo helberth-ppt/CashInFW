@@ -76,6 +76,7 @@
                     33. Modify checkStackingEventTmr in BB for only tracing and no making additional logic. Jan 16 2024 FR/ET
                     34. Supressing //List<string> _leftCounters_t_1 and List<string> _rightCounters_t_1; In theory, it should work to 
                         control the lack of the event : StackedEvent but it is caused a colision with ANdres Lopez DLL. May 8 2024 ET/GM
+                    35. Adding steps and screens for Charity Confirm function. Jun 26 2024 HE
      */
     public class ASAICashInFW : CCFrameWorkImpl
     {
@@ -83,7 +84,7 @@
         public const string ASAICASHINFW_PROP_TRANSACTION = "ASAICASHIN_TRANSACTION";
         public const string ASAICASHINFW_PROP_LEFTTICKETS = "ASAICASHIN_LEFTTICKETS";
         public const string ASAICASHINFW_PROP_RIGHTTICKETS = "ASAICASHIN_RIGHTTICKETS";
-        public const string ASAICASHINFW_VERSION = "12022024"; //ddMMyyyy
+        public const string ASAICASHINFW_VERSION = "26062024"; //ddMMyyyy
         public const string ASAIBILLACCEPTOR_PROP_RIGHTCOUNTER = "ASAIBILLACCEPTOR_RIGHTCOUNTER";
         public const string ASAIBILLACCEPTOR_PROP_LEFTCOUNTER = "ASAIBILLACCEPTOR_LEFTCOUNTER";
 
@@ -146,6 +147,8 @@
         public const short ASAICASHIFW_FUNC_CHARITY = 65;
         public const short ASAICASHIFW_FUNC_CHARITYLIST = 66;
         public const short ASAICASHINFW_FUNC_CHARITYPROCESS = 67;
+        public const short ASAICASHINFW_FUNC_CHARITYPROCESSSELECT = 69;
+        public const short ASAICASHINFW_FUNC_CHARITYCONFIRM = 70;
         public const int MSG400023 = 400023;
 
         #endregion Charity
@@ -824,6 +827,14 @@
                         case ASAICASHIFW_FUNC_CHARITYLIST:
                             dataDict.Set("CHARITY", "ASAICASHIN_STATE");
                             result = CharityList();
+                            break;
+                        case ASAICASHINFW_FUNC_CHARITYPROCESSSELECT:
+                            dataDict.Set("CHARITY", "ASAICASHIN_STATE");
+                            result = CharityProcessSelect();
+                            break;
+                        case ASAICASHINFW_FUNC_CHARITYCONFIRM:
+                            dataDict.Set("CHARITY", "ASAICASHIN_STATE");
+                            result = CharityConfirm();
                             break;
                         case ASAICASHINFW_FUNC_CHARITYPROCESS:
                             dataDict.Set("CHARITY", "ASAICASHIN_STATE");
@@ -3254,6 +3265,229 @@
 
             //dataDict.Set("ASAICashInFW - CharityProcess change_end3: " + change_end, "ASAIWELCOMETRACE");
             //journal.Write(500001);
+
+            return result;
+        }
+
+        private short CharityProcessSelect()
+        {
+            short result = 0;
+            //0 = Dispensing
+            //1 = CharityConfirmNO
+            //2 = CharityConfirmYES
+            Transaction transaction;
+            string transactionStr = "";
+            string change_end = string.Empty;
+
+            try
+            {
+                //dataDict.Set("ASAICashInFW - CharityProcess", "ASAIWELCOMETRACE");
+                //journal.Write(500001);
+
+                string selection = String.Empty;
+                dataDict.Get(ref selection, "CCTAFW_PROP_UI_VIEW_INTERACTION_RESULT");
+
+                //dataDict.Set("ASAICashInFW - CharityProcess selection: " + selection, "ASAIWELCOMETRACE");
+                //journal.Write(500001);
+
+                if (!selection.Contains("CANCEL") && selection.Length > 0)
+                {
+                    int id = Convert.ToInt32(selection.Remove(0, 2));
+
+                    dataDict.Set("ASAICashInFW - CharityProcess ID: " + id, "ASAIWELCOMETRACE");
+                    journal.Write(500001);
+
+                    if (id != 99)
+                    {
+                        dataDict.Get(ref transactionStr, ASAICASHINFW_PROP_TRANSACTION);
+                        transaction = DeserializeJSON(transactionStr);
+
+                        decimal transactionAmountInt = Math.Truncate(transaction.total);
+                        decimal transactionAmountDec = transaction.total - transactionAmountInt;
+                        String formtted = string.Format("{0:0.00}", transactionAmountDec);
+
+                        dataDict.Set("ASAICashInFW - CharityProcess: Integer value: " + transactionAmountInt + " Decimal value: " + transactionAmountDec, "ASAIWELCOMETRACE");
+                        journal.Write(500001);
+
+                        dataDict.Set(transactionAmountDec.ToString(), "ASAICHARITY_CHANGE_END");
+                        dataDict.Set(transactionAmountInt.ToString(), "ASAICHARITY_CASH");
+                        dataDict.Set(formtted, "ASAICHARITY_CHANGE");
+
+                        dataDict.Get(ref change_end, "ASAICHARITY_CHANGE_END"); //para validar toca borrar
+                        dataDict.Set("ASAICashInFW - CharityProcess change_end: " + change_end, "ASAIWELCOMETRACE");
+                        journal.Write(500001);
+
+                        //Charity
+                        string charityName = string.Empty;
+                        string charityStrList = string.Empty;
+                        string charityID = string.Empty;
+                        string charityValue = string.Empty;
+                        CharityList charityList = new CharityList();
+                        List<Charity> charitiesLst = new List<Charity>();
+
+                        uint i = (uint)id;
+                        dataDict.Get(ref charityName, "ASAICHARITYSEL", i);
+
+                        dataDict.Set("ASAICashInFW - CharityProcess charityName: " + charityName, "ASAIWELCOMETRACE");
+                        journal.Write(500001);
+
+                        dataDict.Get(ref charityStrList, "ASAICHARITYLIST");
+                        charityList = charityList.DeserializeJSON<CharityList>(charityStrList);
+                        charitiesLst = charityList.charityList;
+
+                        dataDict.Set("ASAICashInFW - CharityProcess charityStrList: " + charityStrList, "ASAIWELCOMETRACE");
+                        journal.Write(500001);
+
+                        foreach (Charity item in charitiesLst)
+                        {
+                            if (item.value.Contains(charityName))
+                            {
+                                //dataDict.Set("ASAICashInFW - CharityProcess -  item.value: " + item.value + " item.bOServerID: " + item.bOServerID, "ASAIWELCOMETRACE");
+                                //journal.Write(500001);
+
+                                charityID = item.bOServerID;
+                                charityValue = item.value;
+                            }
+                        }
+
+                        dataDict.Set(string.Empty, "ASAICHARITYLIST"); //Clean
+                        dataDict.Set(charityName, "ASAICHARITY_NAME");
+                        dataDict.Set(charityID, "ASAICHARITYID");
+                        dataDict.Set(charityValue, "ASAICHARITY_VALUE");
+
+                        dataDict.Set("ASAICashInFW - CharityProcess change_end2: " + change_end, "ASAIWELCOMETRACE");
+                        journal.Write(500001);
+
+                        //Show ASAICharityDisplayConfirmYES
+                        //dataDict.Set(string.Empty, "ASAICHARITYYES_CASH");
+                        //dataDict.Set(string.Empty, "ASAICHARITYYES_CHANGE");
+                        result = 2;
+                    }
+                    else
+                    {
+                        //The user selected NO DONATION Button
+                        dataDict.Set(string.Empty, "ASAICHARITY_CASH");
+                        dataDict.Set(string.Empty, "ASAICHARITY_CHANGE");
+                        dataDict.Set("NO DONATION", "ASAICHARITY_NAME");
+                        dataDict.Set(string.Empty, "ASAICHARITYLIST");
+                        dataDict.Set(string.Empty, "ASAICHARITY_CHANGE_END");
+                        dataDict.Set(string.Empty, "ASAICHARITYID");
+                        dataDict.Set(string.Empty, "ASAICHARITY_VALUE");
+
+                        //Show ASAICharityDisplayConfirmNO
+                        dataDict.Set(string.Empty, "ASAICHARITYNO_CASH");
+                        dataDict.Set(string.Empty, "ASAICHARITYNO_CHANGE");
+                        result = 1;
+                    }
+                }
+                else
+                {
+                    //The user selected CANCEL Button or the selection is empty
+                    dataDict.Set(string.Empty, "ASAICHARITY_CASH");
+                    dataDict.Set(string.Empty, "ASAICHARITY_CHANGE");
+                    dataDict.Set("NO DONATION", "ASAICHARITY_NAME");
+                    dataDict.Set(string.Empty, "ASAICHARITYLIST");
+                    dataDict.Set(string.Empty, "ASAICHARITY_CHANGE_END");
+                    dataDict.Set(string.Empty, "ASAICHARITYID");
+                    dataDict.Set(string.Empty, "ASAICHARITY_VALUE");
+
+                    //Show ASAICharityDisplayConfirmNO
+                    dataDict.Set(string.Empty, "ASAICHARITYNO_CASH");
+                    dataDict.Set(string.Empty, "ASAICHARITYNO_CHANGE");
+                    result = 1;
+                }
+            }
+            catch (Exception ex)
+            {
+                dataDict.Set("ASAICashInFW - CharityProcess Error: " + ex.ToString(), "ASAIWELCOMETRACE");
+                journal.Write(500001);
+
+                dataDict.Set(string.Empty, "ASAICHARITY_CASH");
+                dataDict.Set(string.Empty, "ASAICHARITY_CHANGE");
+                dataDict.Set("NO DONATION", "ASAICHARITY_NAME");
+                dataDict.Set(string.Empty, "ASAICHARITYLIST");
+                dataDict.Set(string.Empty, "ASAICHARITY_CHANGE_END");
+                dataDict.Set(string.Empty, "ASAICHARITYID");
+                dataDict.Set(string.Empty, "ASAICHARITY_VALUE");
+            }
+
+            //dataDict.Set("ASAICashInFW - CharityProcess change_end3: " + change_end, "ASAIWELCOMETRACE");
+            //journal.Write(500001);
+
+            return result;
+        }
+
+        private short CharityConfirm()
+        {
+            short result = 0;
+
+            try
+            {
+                dataDict.Set("ASAICashInFW - CharityConfirm", "ASAIWELCOMETRACE");
+                journal.Write(500001);
+
+                //Get Selection button result
+                string selection = String.Empty;
+                dataDict.Get(ref selection, "CCTAFW_PROP_UI_VIEW_INTERACTION_RESULT");
+
+                //dataDict.Set("ASAICashInFW - CharityProcess selection: " + selection, "ASAIWELCOMETRACE");
+                //journal.Write(500001);
+
+                if (!selection.Contains("CANCEL") && selection.Length > 0)
+                {
+                    //User selected YES or NO button
+                    if (selection.Contains("YES")) {
+                        //YES Button was selected
+                        dataDict.Set("ASAICashInFW - CharityConfirm: YES was selected", "ASAIWELCOMETRACE");
+                        journal.Write(500001);
+                        //Go to Dispensing Process
+                    }
+                    else
+                    {
+                        //NO Button was selected
+                        dataDict.Set("ASAICashInFW - CharityConfirm: NO was selected", "ASAIWELCOMETRACE");
+                        journal.Write(500001);
+                        //Clean the Charity variables
+                        dataDict.Set(string.Empty, "ASAICHARITY_CASH");
+                        dataDict.Set(string.Empty, "ASAICHARITY_CHANGE");
+                        dataDict.Set("NO DONATION", "ASAICHARITY_NAME");
+                        dataDict.Set(string.Empty, "ASAICHARITYLIST");
+                        dataDict.Set(string.Empty, "ASAICHARITY_CHANGE_END");
+                        dataDict.Set(string.Empty, "ASAICHARITYID");
+                        dataDict.Set(string.Empty, "ASAICHARITY_VALUE");
+                    }
+                 }
+                else
+                {
+                    //Contains CANCEL or is empty
+                    dataDict.Set("ASAICashInFW - CharityConfirm: CANCEL was selected", "ASAIWELCOMETRACE");
+                    journal.Write(500001);
+                    //Clean the Charity variables
+                    dataDict.Set(string.Empty, "ASAICHARITY_CASH");
+                    dataDict.Set(string.Empty, "ASAICHARITY_CHANGE");
+                    dataDict.Set("NO DONATION", "ASAICHARITY_NAME");
+                    dataDict.Set(string.Empty, "ASAICHARITYLIST");
+                    dataDict.Set(string.Empty, "ASAICHARITY_CHANGE_END");
+                    dataDict.Set(string.Empty, "ASAICHARITYID");
+                    dataDict.Set(string.Empty, "ASAICHARITY_VALUE");
+                }
+            }
+            catch (Exception ex)
+            {
+                dataDict.Set("ASAICashInFW - CharityProcess Error: " + ex.ToString(), "ASAIWELCOMETRACE");
+                journal.Write(500001);
+
+                //An error occurred, clean the Charity variables
+
+                //Clean the Charity variables
+                dataDict.Set(string.Empty, "ASAICHARITY_CASH");
+                dataDict.Set(string.Empty, "ASAICHARITY_CHANGE");
+                dataDict.Set("NO DONATION", "ASAICHARITY_NAME");
+                dataDict.Set(string.Empty, "ASAICHARITYLIST");
+                dataDict.Set(string.Empty, "ASAICHARITY_CHANGE_END");
+                dataDict.Set(string.Empty, "ASAICHARITYID");
+                dataDict.Set(string.Empty, "ASAICHARITY_VALUE");
+            }
 
             return result;
         }
