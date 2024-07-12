@@ -3295,6 +3295,24 @@
                 var charityChange = string.Empty;
                 var charityCash = string.Empty;
 
+                dataDict.Get(ref transactionStr, ASAICASHINFW_PROP_TRANSACTION);
+                transaction = DeserializeJSON(transactionStr);
+
+                decimal transactionAmountInt = Math.Truncate(transaction.total);
+                decimal transactionAmountDec = transaction.total - transactionAmountInt;
+                String formtted = string.Format("{0:0.00}", transactionAmountDec);
+
+                dataDict.Set("ASAICashInFW - CharityProcess: Integer value: " + transactionAmountInt + " Decimal value: " + transactionAmountDec, "ASAIWELCOMETRACE");
+                journal.Write(500001);
+
+                dataDict.Set(transactionAmountDec.ToString(), "ASAICHARITY_CHANGE_END");
+                dataDict.Set(transactionAmountInt.ToString(), "ASAICHARITY_CASH");
+                dataDict.Set(formtted, "ASAICHARITY_CHANGE");
+
+                charityChange = formtted;
+                charityCash = transactionAmountInt.ToString();
+
+
                 if (!selection.Contains("CANCEL") && selection.Length > 0)
                 {
                     //The user not selected a CANCEL Button, the selection is not empty
@@ -3306,22 +3324,6 @@
                     if (id != 99)
                     {
                         //The user selected a Item of the Charity List
-                        dataDict.Get(ref transactionStr, ASAICASHINFW_PROP_TRANSACTION);
-                        transaction = DeserializeJSON(transactionStr);
-
-                        decimal transactionAmountInt = Math.Truncate(transaction.total);
-                        decimal transactionAmountDec = transaction.total - transactionAmountInt;
-                        String formtted = string.Format("{0:0.00}", transactionAmountDec);
-
-                        dataDict.Set("ASAICashInFW - CharityProcess: Integer value: " + transactionAmountInt + " Decimal value: " + transactionAmountDec, "ASAIWELCOMETRACE");
-                        journal.Write(500001);
-
-                        dataDict.Set(transactionAmountDec.ToString(), "ASAICHARITY_CHANGE_END");
-                        dataDict.Set(transactionAmountInt.ToString(), "ASAICHARITY_CASH");
-                        dataDict.Set(formtted, "ASAICHARITY_CHANGE");
-
-                        charityChange = formtted;
-                        charityCash = transactionAmountInt.ToString();
 
                         dataDict.Get(ref change_end, "ASAICHARITY_CHANGE_END"); //para validar toca borrar
                         dataDict.Set("ASAICashInFW - CharityProcess change_end: " + change_end, "ASAIWELCOMETRACE");
