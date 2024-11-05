@@ -78,6 +78,7 @@
                     34. Supressing //List<string> _leftCounters_t_1 and List<string> _rightCounters_t_1; In theory, it should work to 
                         control the lack of the event : StackedEvent but it is caused a colision with ANdres Lopez DLL. May 8 2024 ET/GM
                     35. Adding steps and screens for Charity Confirm function. Jun 26 2024 HE
+                    36. Added new CharitySelect screen using Touch model. Oct 16 2024 HE
      */
     public class ASAICashInFW : CCFrameWorkImpl
     {
